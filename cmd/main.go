@@ -2,43 +2,60 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
-type application struct {
-	infoLog  *log.Logger
-	errorLog *log.Logger
-}
+const version = "1.0.0"
 
 type config struct {
-	addr string
+	port int
+	env  string
+}
+
+type application struct {
+	config config
+	logger *log.Logger
 }
 
 func main() {
-
+	// Declare instance of config struct
 	var cfg config
 
-	flag.StringVar(&cfg.addr, "addr", ":3000", "The port on which the server will listen")
-
+	// Read flags into config struct
+	flag.IntVar(&cfg.port, "port", 4000, "The port on which the server will listen")
+	flag.StringVar(&cfg.env, "env", "development", "The environment (development|staging|production)")
 	flag.Parse()
 
-	infoLog := log.New(os.Stdout, "INFO:\t", log.Ldate|log.Ltime)
-	errorLog := log.New(os.Stderr, "ERROR:\t", log.Ldate|log.Ltime|log.Lshortfile)
+	// Declare instance of basic logger to stdout
+	logger := log.New(os.Stdout, "", log.Ldate|log.Ltime)
 
+	// Declare instance of application struct with a config and logger
 	app := &application{
-		infoLog:  infoLog,
-		errorLog: errorLog,
+		config: cfg,
+		logger: logger,
 	}
 
+	// Declare instance of new servemux
+	mux := http.NewServeMux()
+
+	// Health check route
+	mux.HandleFunc("/api/v1", app.healthCheck)
+
+	// Declare instance of http serve with port, mux, and timeout defaults
 	server := &http.Server{
-		Addr:     cfg.addr,
-		ErrorLog: errorLog,
-		Handler:  app.routes(),
+		Addr:         fmt.Sprintf(":%d", cfg.port),
+		Handler:      mux,
+		IdleTimeout:  time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
 	}
 
-	app.infoLog.Printf("Listening on port %s", cfg.addr)
+	// Start the http server
+	logger.Printf("Starting %s server on port %d", cfg.env, cfg.port)
 	err := server.ListenAndServe()
-	app.errorLog.Fatal(err)
+	logger.Fatal(err)
 }

@@ -6,6 +6,7 @@ import (
 )
 
 func (app *application) healthCheck(w http.ResponseWriter, r *http.Request) {
-	// app.infoLog.Printf("Hit the health check route!")
-	fmt.Fprintf(w, "Health is good!")
+	fmt.Fprintln(w, "status: available")
+	fmt.Fprintf(w, "environment: %s\n", app.config.env)
+	fmt.Fprintf(w, "version: %s\n", version)
 }
